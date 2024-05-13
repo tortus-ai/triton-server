@@ -1,0 +1,29 @@
+name: "llama3_8b"
+backend: "python"
+input [
+  {
+    name: "system_message"
+    data_type: TYPE_STRING  
+    dims: [1]
+  },
+  {
+    name: "user_message"
+    data_type: TYPE_STRING  
+    dims: [1]
+  }
+]
+output [
+  {
+    name: "generated_text"
+    data_type: TYPE_STRING  
+    dims: [1]
+  }
+]
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
