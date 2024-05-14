@@ -16,13 +16,12 @@ import torchvision.transforms as transforms
 from torchvision.transforms import Resize, PILToTensor
 
 from transformers import (
-    pipeline,
     TrOCRProcessor,
     VisionEncoderDecoderModel
 )
 import huggingface_hub
 
-os.environ["TRANSFORMERS_CACHE"] = "/opt/tritonserver/model_repository/llama3_8b/hf-cache"
+os.environ["TRANSFORMERS_CACHE"] = "/opt/tritonserver/model_repository/trocr/hf-cache"
 
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
 
@@ -32,16 +31,7 @@ class TritonPythonModel:
         cur_path = os.path.abspath(__file__)
         hf_model = 'microsoft/trocr-small-printed'
         self.processor = TrOCRProcessor.from_pretrained(hf_model)
-        self.model = VisionEncoderDecoderModel.from_pretrained(
-            hf_model,
-            device_map="auto")
-        self.pipeline = pipeline(
-            'image-to-text',
-            model=self.model,
-            tokenizer=self.tokenizer,
-            torch_dtype=torch.float16,
-            device_map="auto",
-        )
+        self.model = VisionEncoderDecoderModel.from_pretrained(hf_model).cuda()
         self.transforms = transforms.Compose([
                 transforms.RandomInvert(p=1),
                 transforms.Grayscale(num_output_channels=3),
@@ -50,17 +40,21 @@ class TritonPythonModel:
             ])
 
     def generate(self, images):
+        """
+        Generate batch responses from input images.
+        :param images: BCWH pt Tensor
+        """
         inputs = self.processor(images=images, return_tensors="pt").pixel_values
         ids = self.model.generate(inputs.cuda())
         results = self.processor.batch_decode(ids, skip_special_tokens=True)
-        tensor = pb_utils.Tensor('generated_text', np.array(results,
-            dtype=np.object_))
-        response = pb_utils.InferenceResponse(output_tensors=tensor)
-        return response
+        tensors = [pb_utils.Tensor('generated_text', np.array(result, dtype=np.object_)) for result in results]
+        responses = [pb_utils.InferenceResponse(output_tensors=[tensor]) for tensor in tensors]
+        return responses
 
     def _read_image_tensor(self, request, tensor_name):
-        img = pb_utils.get_input_tensor_by_name(request, tensor_name)
-        img = base64.b64decode(img.as_numpy())
+        img = pb_utils.get_input_tensor_by_name(request, tensor_name).as_numpy()
+        img = img[0].decode("utf-8")
+        img = base64.b64decode(img)
         img = Image.open(io.BytesIO(img))
         img = img.convert('RGB')
         img = self.transforms(img)
