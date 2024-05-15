@@ -8,6 +8,7 @@ generate load tests
 
 import base64
 from typing import List
+import numpy as np
 
 def parse_pbtxt_to_dict(filepath):
     """
@@ -108,3 +109,46 @@ def parse_data_for_request(data:dict):
             output_data[key] = eval(value)
     
     return output_data
+
+def is_correct_type(value, type_str:str):
+    """
+    Check input data type against the expected type.
+    """
+    # Mapping of type strings to actual Python data types
+    type_mapping = {
+        "BOOL": bool,
+        "UINT8": np.uint8,
+        "UINT16": np.uint16,
+        "UINT32": np.uint32,
+        "UINT64": np.uint64,
+        "INT8": np.int8,
+        "INT16": np.int16,
+        "INT32": np.int32,
+        "INT64": np.int64,
+        "FLOAT16": np.float16,
+        "FLOAT": float,
+        "DOUBLE": float,
+        "BYTES": bytes
+    }
+
+    expected_type = type_mapping.get(type_str.strip().upper(), None)
+
+    if expected_type is None:
+        raise ValueError(f"Unsupported type string: {type_str}")
+
+    return isinstance(value, expected_type)
+
+def validate_request_data_against_schema(schema_dict:dict, data:dict):
+    """
+    Validate that the data dictionary conforms to the schema.
+    """
+    inputs = schema_dict["inputs"]
+    for input_dict in inputs:
+        name = input_dict["name"]
+        data_type = input_dict["datatype"]
+        value = data.get(name, None)
+        if value is None:
+            raise ValueError(f"Input {name} not found in data dictionary")
+        if not is_correct_type(value, data_type):
+            raise ValueError(f"Input {name} is not of the correct type {data_type}")
+    return True

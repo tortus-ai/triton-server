@@ -14,7 +14,8 @@ from locust import HttpUser, task, tag, constant_throughput, events
 from request_schema import \
     parse_pbtxt_to_dict, \
     convert_input_schema_into_request_data_dict, \
-    parse_data_for_request
+    parse_data_for_request, \
+    validate_request_data_against_schema
 
 class LoadTestBase(ABC):
     def __init__(self,
@@ -63,6 +64,9 @@ class LoadTestBase(ABC):
         """
         Parse the data dictionary into a format that can be sent in the request. 
         """
+        if not validate_request_data_against_schema(self.input_data_body, self.data):
+            raise ValueError("Data dictionary does not conform to schema")
+        
         data_item = parse_data_for_request(self.data)
         for sub_dict in self.input_data_body["inputs"]:
             key = sub_dict["name"]
