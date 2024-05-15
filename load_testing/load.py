@@ -4,7 +4,7 @@
 
 """
 
-import base64
+import time
 import os
 from abc import ABC
 from Typing import Any
@@ -78,3 +78,25 @@ class LoadTestBase(ABC):
         Method that runs at the beginning of the test.
         """
         raise NotImplementedError
+
+class LoadTest(LoadTestBase, HttpUser):
+    def __init__(self,
+                 schema_path:str,
+                 host:str,
+                 authorization:str,
+                 wait_time:float,
+                 data:dict):
+        """
+        Extends the LoadTestBase class to load test an endpoint.
+        """
+        super().__init__(schema_path=schema_path, host=host, authorization=authorization, wait_time=wait_time, data=data)
+
+    @tag("inference")
+    @task
+    def predict(self):
+        headers = {
+            "Authorization": f"Bearer {self.authorization}",
+            "Content-Type": "application/json"
+        }
+        self.client.post(self.host, json=self.input_data_body, headers=headers)
+        time.wait(self.wait_time)
