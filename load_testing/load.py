@@ -11,7 +11,10 @@ from Typing import Any
 
 from locust import HttpUser, task, tag, constant_throughput, events
 
-from request_schema import parse_pbtxt_to_dict, convert_input_schema_into_request_data_dict
+from request_schema import \
+    parse_pbtxt_to_dict, \
+    convert_input_schema_into_request_data_dict, \
+    parse_data_for_request
 
 class LoadTestBase(ABC):
     def __init__(self,
@@ -25,6 +28,7 @@ class LoadTestBase(ABC):
         self.parse_schema()
         self.get_request_input_data()
         self.verify_schema_inputs_against_data(data)
+        self.format_data()
         self.host = host
         self.authorization = authorization
         self.wait_time = wait_time
@@ -57,9 +61,13 @@ class LoadTestBase(ABC):
 
     def format_data(self):
         """
-        Method that formats the data to be sent in the request.
+        Parse the data dictionary into a format that can be sent in the request. 
         """
-        raise NotImplementedError
+        data_item = parse_data_for_request(self.data)
+        for sub_dict in self.input_data_body["inputs"]:
+            key = sub_dict["name"]
+            data = data_item[key]
+            sub_dict["data"].append(data)
 
     def on_start(self):
         """
