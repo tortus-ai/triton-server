@@ -1,5 +1,6 @@
 name: "trocr"
 backend: "python"
+max_batch_size: 32
 input [
   {
     name: "image"
@@ -18,7 +19,11 @@ instance_group [
   {
     count: 1
     kind: KIND_GPU
-    gpus: [ 0 ]
+    gpus: [ 1 ]
   }
 ]
 
+dynamic_batching {
+    preferred_batch_size: [2, 4, 8, 16, 32]
+    max_queue_delay_microseconds: 200
+}
