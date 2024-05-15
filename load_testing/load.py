@@ -52,7 +52,6 @@ class LoadTestBase(ABC):
         inputs = self.input_data_body["inputs"] # List of dicts
         for input_dict in inputs:
             assert input_dict["name"] in data.keys(), f"Input {input_dict['name']} not found in data dictionary"
-            assert "data" in data.keys(), f"Data for {input_dict['name']} not found in data dictionary"
 
         self.data = data
 
