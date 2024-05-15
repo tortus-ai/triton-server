@@ -6,6 +6,9 @@ into python objects that can be used to
 generate load tests
 """
 
+import base64
+from typing import List
+
 def parse_pbtxt_to_dict(filepath):
     """
     This function takes a defined .pbtxt file and parses it into a dictionary.
@@ -89,3 +92,19 @@ def convert_input_schema_into_request_data_dict(schema:dict):
         }
         base_dict["inputs"].append(input_data) 
     return base_dict
+
+def parse_data_for_request(data:dict):
+    """
+    Parse the data dictionary into a format that can be sent in the request.
+    """
+    output_data = {}
+    for key, value in data.items():
+        if isinstance(value, str) and value.split(".")[1] in [".png", ".jpg"]:
+            # If the value is a path to an image, convert to base64
+            with open(value, "rb") as f:
+                image_base64 = base64.b64encode(f.read()).decode("utf-8")
+                output_data[key] = image_base64
+        else:
+            output_data[key] = eval(value)
+    
+    return output_data
