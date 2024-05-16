@@ -18,7 +18,6 @@ from request_schema import \
 def _(parser):
     parser.add_argument("--schema", type=str, env_var="SCHEMA_PATH", help="Path to locust schema")
     parser.add_argument("--authorization", env_var="AUTH_TOKEN",help="Bearer token")
-    parser.add_argument("--wait_time", type=float, env_var="WAIT_TIME", default=1)
     parser.add_argument("--data", type=str, env_var="DATA_PATH", help="Path to data file")
 
 
@@ -30,7 +29,7 @@ def _(environment, **kw):
 
 
 class LoadTest(HttpUser):
-    wait_time = constant_throughput(0.1)
+    wait_time = constant_throughput(1./300)
 
     def _read_env_vars(self):
         """
