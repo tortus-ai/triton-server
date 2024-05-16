@@ -6,7 +6,7 @@ Locust file for load testing
 
 import os
 import json
-from locust import HttpUser, task, tag, constant_throughput, events
+from locust import HttpUser, task, tag, constant_throughput, events, LoadTestShape
 from request_schema import \
     parse_pbtxt_to_dict, \
     convert_input_schema_into_request_data_dict, \
@@ -19,7 +19,9 @@ def _(parser):
     parser.add_argument("--schema", type=str, env_var="SCHEMA_PATH", help="Path to locust schema")
     parser.add_argument("--authorization", env_var="AUTH_TOKEN",help="Bearer token")
     parser.add_argument("--data", type=str, env_var="DATA_PATH", help="Path to data file")
-
+    parser.add_argument("--starting-users", type=int, env_var="STARTING_USERS", help="Number of users to start with", default=100)
+    parser.add_argument("--bulk-ramp", type=int, env_var="BULKRAMP", help="How many users to bulk add at a given timestep", default=10)
+    parser.add_argument("--bulk-interval", type=float, env_var="BULKINTERVAL", help="How often to add users in seconds", default=60)
 
 @events.test_start.add_listener
 def _(environment, **kw):
@@ -79,14 +81,15 @@ class LoadTest(HttpUser):
         """
         Parse the data dictionary into a format that can be sent in the request. 
         """
-        if not validate_request_data_against_schema(self.input_data_body, self.data):
-            raise ValueError("Data dictionary does not conform to schema")
-        
         data_item = parse_data_for_request(self.data)
         for sub_dict in self.input_data_body["inputs"]:
             key = sub_dict["name"]
             data = [data_item[key]]
             sub_dict["data"].append(data)
+        
+        if not validate_request_data_against_schema(self.input_data_body, self.data):
+            raise ValueError("Data dictionary does not conform to schema")
+
 
 
     @tag("inference")
@@ -101,5 +104,24 @@ class LoadTest(HttpUser):
         self._read_env_vars()
         self.parse_schema()
         self.get_request_input_data()
-        self.verify_schema_inputs_against_data(self.data)
         self.format_data()
+        self.verify_schema_inputs_against_data(self.data)
+
+
+class CustomLoadShape(LoadTestShape):
+    """
+    A custom load shape to spawn 100 users immediately and then 10 users every minute.
+    """
+
+    def tick(self):
+        starting_users = self.runner.environment.parsed_options.starting_users
+        bulk_interval = self.runner.environment.parsed_options.bulk_interval
+        bulk_ramp = self.runner.environment.parsed_options.bulk_ramp
+        run_time = self.get_run_time()
+        
+        if run_time < 60:  # First minute
+            return starting_users, starting_users  # Start with 100 users
+        else:
+            users = 100 + ((run_time) // bulk_interval) * bulk_ramp  # 10 users every minute
+            spawn_rate = bulk_ramp # we spawn all the users at once
+            return users, spawn_rate

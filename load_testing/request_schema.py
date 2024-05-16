@@ -153,6 +153,6 @@ def validate_request_data_against_schema(schema_dict:dict, data:dict):
         value = data.get(name, None)
         if value is None:
             raise ValueError(f"Input {name} not found in data dictionary")
-        if not is_correct_type(value, data_type):
+        if not is_correct_type(value["content"], data_type):
             raise ValueError(f"Input {name} is not of the correct type {data_type}")
     return True
