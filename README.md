@@ -39,7 +39,7 @@ PS Don't forget to `chmod +x ./run_server.sh` if this is the first time you're u
 Once the server is set up, you can hit it on localhost or through your machine's IP with the following convention:
 
 ```
-curl -X curl -X POST http://{IP}/v2/models/{MODEL_NAME}/infer -d {"inputs": [{"name":"system_message","datatype":"BYTES","shape":[1,1],"data":[["You are a useful assistant, please respond in Pirate speak"]]}, {"name":"user_message","datatype":"BYTES","shape":[1,1],"data":[["Why is the sky blue?"]]}]}
+curl -X POST http://{IP}/v2/models/{MODEL_NAME}/infer -d {"inputs": [{"name":"system_message","datatype":"BYTES","shape":[1,1],"data":[["You are a useful assistant, please respond in Pirate speak"]]}, {"name":"user_message","datatype":"BYTES","shape":[1,1],"data":[["Why is the sky blue?"]]}]}
 ```
 
 NOTE: The payload you send in the request is dependent on the configuration of the model you're using. The model config explains what the input names it expects are and you'll have to provide this using the following convention:
@@ -91,3 +91,24 @@ This is a python file which uses triton's SDK to implement a class which represe
 ### Model Config file
 
 This is pbtxt file containing the config for your model. You can set the batch size, interfaces and other variables. See [here](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md) for more info.
+
+
+## Run single load test
+
+From upper level directory, CLI:
+
+```bash
+locust -f load_testing/locustfile.py --csv <filename> --headless -t5m --csv-full-history -u 1 -r 1 --data <path_to_data_json> --schema <path_to_model_pbtxt> --hsot <hostname>
+```
+
+Flags:
+- `--csv`: `.csv` to save results to
+- `--headless`: whether or not to run a UI for visualisation
+- `-t`: duration of load test
+- `--csv-full-history`: whether or not to save all history of the laod test.
+- `-u`: number of users
+- `-r`: number of requests/second per user
+- `--data`: `.json` file that contains the input data to use for the load test.
+- `--schema`: path to the Triton model config `.pbtxt` which matches the host endpoint
+
+An example of a data JSON for the Llama3-8b deployment can be found at `load_testing/example/data_llama.json`
