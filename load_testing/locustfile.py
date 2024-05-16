@@ -1,38 +1,54 @@
-# coding=utf-8
+# coding=utf-8
 
 """
-
+Locust file for load testing
 """
 
-import time
 import os
-from abc import ABC
-from Typing import Any
-
+import json
 from locust import HttpUser, task, tag, constant_throughput, events
-
 from request_schema import \
     parse_pbtxt_to_dict, \
     convert_input_schema_into_request_data_dict, \
     parse_data_for_request, \
     validate_request_data_against_schema
 
-class LoadTestBase(ABC):
-    def __init__(self,
-                 schema_path:str,
-                 host:str,
-                 authorization:str,
-                 wait_time:float,
-                 data:dict):
-        assert os.path.exists(schema_path), f"Schema file for model not found at {schema_path}"
-        self.schema_path = schema_path
-        self.parse_schema()
-        self.get_request_input_data()
-        self.verify_schema_inputs_against_data(data)
-        self.format_data()
-        self.host = host
-        self.authorization = authorization
-        self.wait_time = wait_time
+
+@events.init_command_line_parser.add_listener
+def _(parser):
+    parser.add_argument("--schema", type=str, env_var="SCHEMA_PATH", help="Path to locust schema")
+    parser.add_argument("--authorization", env_var="AUTH_TOKEN",help="Bearer token")
+    parser.add_argument("--wait_time", type=float, env_var="WAIT_TIME", default=1)
+    parser.add_argument("--data", type=str, env_var="DATA_PATH", help="Path to data file")
+
+
+@events.test_start.add_listener
+def _(environment, **kw):
+    print(f"Custom argument supplied: {environment.parsed_options.data}")
+    print(f"Custom argument supplied: {environment.parsed_options.schema}")
+
+
+
+class LoadTest(HttpUser):
+    wait_time = constant_throughput(0.1)
+
+    def _read_env_vars(self):
+        """
+        Extends the LoadTestBase class to load test an endpoint.
+        """
+        kwargs = self.environment.parsed_options.__dict__
+        self.schema_path = kwargs.get("schema", os.environ.get("SCHEMA_PATH"))
+        self.host = kwargs.get("host", os.environ.get("HOST"))
+        self.authorization = kwargs.get("authorization", os.environ.get("AUTH_TOKEN"))
+        self.data_path = kwargs.get("data", os.environ.get("DATA_PATH"))
+        
+
+        # load the dictionary from the data string
+        assert os.path.exists(self.schema_path)
+        assert os.path.exists(self.data_path)
+        with open(self.data_path, 'r') as file:
+            data = json.load(file)
+        self.data = data
 
     def parse_schema(self):
         """
@@ -70,33 +86,21 @@ class LoadTestBase(ABC):
         data_item = parse_data_for_request(self.data)
         for sub_dict in self.input_data_body["inputs"]:
             key = sub_dict["name"]
-            data = data_item[key]
+            data = [data_item[key]]
             sub_dict["data"].append(data)
 
-    def on_start(self):
-        """
-        Method that runs at the beginning of the test.
-        """
-        raise NotImplementedError
-
-class LoadTest(LoadTestBase, HttpUser):
-    def __init__(self,
-                 schema_path:str,
-                 host:str,
-                 authorization:str,
-                 wait_time:float,
-                 data:dict):
-        """
-        Extends the LoadTestBase class to load test an endpoint.
-        """
-        super().__init__(schema_path=schema_path, host=host, authorization=authorization, wait_time=wait_time, data=data)
 
     @tag("inference")
     @task
     def predict(self):
         headers = {
-            "Authorization": f"Bearer {self.authorization}",
             "Content-Type": "application/json"
         }
-        self.client.post(self.host, json=self.input_data_body, headers=headers)
-        time.wait(self.wait_time)
+        self.client.post(self.host, json=self.input_data_body)
+
+    def on_start(self):
+        self._read_env_vars()
+        self.parse_schema()
+        self.get_request_input_data()
+        self.verify_schema_inputs_against_data(self.data)
+        self.format_data()
