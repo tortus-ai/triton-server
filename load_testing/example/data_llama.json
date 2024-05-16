@@ -1,4 +1,9 @@
 {
-    "system_message": "You are a helpful assistant. Answer in pirate speak",
-    "user_message": "Why is the sky blue?"
-}
+    "system_message": {
+        "content": "You are a helpful assistant. Answer in pirate speak",
+        "type": "string"},
+    
+    "user_message": {
+        "content": "Why is the sky blue?",
+        "type": "string"}
+    }

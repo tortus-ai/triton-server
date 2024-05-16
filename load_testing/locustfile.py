@@ -91,7 +91,6 @@ class LoadTest(HttpUser):
             raise ValueError("Data dictionary does not conform to schema")
 
 
-
     @tag("inference")
     @task
     def predict(self):
