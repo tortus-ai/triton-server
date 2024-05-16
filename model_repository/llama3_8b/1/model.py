@@ -1,4 +1,5 @@
 import os
+from typing import List
 import json
 import triton_python_backend_utils as pb_utils
 import numpy as np
@@ -12,7 +13,9 @@ from transformers import (
 import huggingface_hub
 from threading import Thread
 
-os.environ["TRANSFORMERS_CACHE"] = "/opt/tritonserver/model_repository/llama3_8b/hf-cache"
+os.environ["TRANSFORMERS_CACHE"] = (
+    "/opt/tritonserver/model_repository/llama3_8b/hf-cache"
+)
 
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
 
@@ -20,9 +23,9 @@ huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credenti
 class TritonPythonModel:
     def initialize(self, args):
         cur_path = os.path.abspath(__file__)
-        hf_model = 'meta-llama/Meta-Llama-3-8B-Instruct'
-        self.max_output_length = 100 # TODO change this
-        self.tokenizer= AutoTokenizer.from_pretrained(hf_model)
+        hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
+        self.max_output_length = 100  # TODO change this
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
             load_in_8bit=True,
@@ -31,51 +34,63 @@ class TritonPythonModel:
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.pipeline = pipeline(
-            'text-generation',
+            "text-generation",
             model=self.model,
             tokenizer=self.tokenizer,
             torch_dtype=torch.float16,
             device_map="auto",
         )
+        self.pipeline.tokenizer.pad_token_id = self.model.config.eos_token_id
 
-    def generate(self, prompt):
-        sequences = self.pipeline(
-                prompt,
-                do_sample=True,
-                top_k = 10,
-                num_return_sequences=1,
-                eos_token_id = self.tokenizer.eos_token_id,
-                max_length = self.max_output_length,
-                )
+    def generate(self, prompts: List[str]):
+        logger = pb_utils.Logger
+        batches = self.pipeline(
+            prompts,
+            do_sample=True,
+            top_k=10,
+            num_return_sequences=1,
+            eos_token_id=self.tokenizer.eos_token_id,
+            pad_token_id=self.tokenizer.eos_token_id,
+            max_length=self.max_output_length,
+            batch_size=len(prompts),
+        )
         output_tensors = []
-        texts = []
 
-        for i, seq in enumerate(sequences):
-            text = seq['generated_text']
-            texts.append(text)
+        for i, batch in enumerate(batches):
+            texts = []
+            for i, seq in enumerate(batch):
+                text = seq["generated_text"]
+                texts.append(text)
 
-        tensor = pb_utils.Tensor('generated_text', np.array(texts,
-            dtype=np.object_))
+            tensor = pb_utils.Tensor("generated_text", np.array(text, dtype=np.object_))
+            output_tensors.append(tensor)
 
-        output_tensors.append(tensor)
-        response = pb_utils.InferenceResponse(output_tensors=output_tensors)
-        return response
+        return output_tensors
+
     def _read_tensor(self, request, tensor_name):
-            msgs = pb_utils.get_input_tensor_by_name(request, tensor_name).as_numpy()
-            msgs = msgs[0].decode("utf-8")
-            return msgs
+        msgs = pb_utils.get_input_tensor_by_name(request, tensor_name).as_numpy()
+        msgs = msgs[0][0].decode("utf-8")
+        return msgs
 
-    def execute(self, requests):
-        responses = []
-        for request in requests:
-            # Decode the Byte Tensor into Text
-            sys_msg = self._read_tensor(request, "system_message")
-            user_msg = self._read_tensor(request, "user_message")
-            prompt = f"{sys_msg} \n{user_msg}"
-            response = self.generate(prompt)
-            responses.append(response)
+    def _make_prompt(self, request):
+        sys_msg = self._read_tensor(request, "system_message")
+        user_msg = self._read_tensor(request, "user_message")
+        prompt = f"{sys_msg} \n{user_msg}"
+        return prompt
+
+    def execute(self, requests: List):
+        logger = pb_utils.Logger
+        logger.log_info("Llama Received request")
+        logger.log_info(f"(Llama) Num prompts in batch: {len(requests)}")
+        prompts = [self._make_prompt(request) for request in requests]
+        logger.log_info(f"Submitting the following prompts for batching: {prompts}")
+        tensor_results = self.generate(prompts)
+        responses = [
+            pb_utils.InferenceResponse(output_tensors=[tensor])
+            for tensor in tensor_results
+        ]
 
         return responses
 
     def finalize(self):
-        print('Cleaning up...')
+        print("Cleaning up...")
