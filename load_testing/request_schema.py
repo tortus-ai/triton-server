@@ -101,17 +101,17 @@ def parse_data_for_request(data:dict):
     """
     output_data = {}
     for key, value in data.items():
-        if isinstance(value, str):
-            if Path(value).exists() and Path(value).extension in [".jpg", ".jpeg", ".png", ".bmp"]:
-                # If the value is a path to an image, convert to base64
-                with open(value, "rb") as f:
-                    image_base64 = base64.b64encode(f.read()).decode("utf-8")
-                    output_data[key] = image_base64
-            else:
-                output_data[key] = value
-        else:
-            output_data[key] = eval(value)
-    
+        content = value["content"]
+        type = value["type"]
+        match type:
+            case "string":
+                output_data[key] = content
+            case "image":
+                    with open(content, "rb") as f:
+                        image_base64 = base64.b64encode(f.read()).decode("utf-8")
+                        output_data[key] = image_base64
+            case _:
+                output_data[key] = eval(content)
     return output_data
 
 def is_correct_type(value, type_str:str):
@@ -153,6 +153,6 @@ def validate_request_data_against_schema(schema_dict:dict, data:dict):
         value = data.get(name, None)
         if value is None:
             raise ValueError(f"Input {name} not found in data dictionary")
-        if not is_correct_type(value, data_type):
+        if not is_correct_type(value["content"], data_type):
             raise ValueError(f"Input {name} is not of the correct type {data_type}")
     return True

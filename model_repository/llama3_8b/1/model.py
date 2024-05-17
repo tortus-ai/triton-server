@@ -23,12 +23,17 @@ huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credenti
 class TritonPythonModel:
     def initialize(self, args):
         cur_path = os.path.abspath(__file__)
+        self.model_config = json.loads(args["model_config"])
+        self.model_params = self.model_config.get("parameters", {})
+        self.max_output_length = int(
+            self.model_params.get("max_output_length", {}).get(
+                "string_value", "1024"
+            )
+        )
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
-        self.max_output_length = 100  # TODO change this
         self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
-            load_in_8bit=True,
             torch_dtype=torch.float16,
             device_map="auto",
         )
