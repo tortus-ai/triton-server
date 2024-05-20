@@ -15,6 +15,7 @@ import triton_python_backend_utils as pb_utils
 import torchvision.transforms as transforms
 from torchvision.transforms import Resize, PILToTensor
 
+os.environ["HF_HOME"] = "/opt/tritonserver/.hf-cache"
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import huggingface_hub
 
