@@ -4,6 +4,8 @@ import json
 import triton_python_backend_utils as pb_utils
 import numpy as np
 import torch
+
+os.environ["HF_HOME"] = "/opt/tritonserver/.hf-cache"
 from transformers import (
     pipeline,
     AutoTokenizer,
@@ -12,10 +14,6 @@ from transformers import (
 )
 import huggingface_hub
 from threading import Thread
-
-os.environ["TRANSFORMERS_CACHE"] = (
-    "/opt/tritonserver/model_repository/llama3_8b/hf-cache"
-)
 
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
 
@@ -26,16 +24,17 @@ class TritonPythonModel:
         self.model_config = json.loads(args["model_config"])
         self.model_params = self.model_config.get("parameters", {})
         self.max_output_length = int(
-            self.model_params.get("max_output_length", {}).get(
-                "string_value", "1024"
-            )
+            self.model_params.get("max_output_length", {}).get("string_value", "1024")
         )
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
-        self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            hf_model, cache_dir=os.environ["HF_HOME"]
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
             torch_dtype=torch.float16,
             device_map="auto",
+            cache_dir=os.environ["HF_HOME"],
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.pipeline = pipeline(
