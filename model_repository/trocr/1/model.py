@@ -18,17 +18,18 @@ from torchvision.transforms import Resize, PILToTensor
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import huggingface_hub
 
-os.environ["TRANSFORMERS_CACHE"] = "/opt/tritonserver/model_repository/trocr/hf-cache"
-
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
+cache_dir = os.environ["HF_HOME"]
 
 
 class TritonPythonModel:
     def initialize(self, args):
         cur_path = os.path.abspath(__file__)
         hf_model = "microsoft/trocr-small-printed"
-        self.processor = TrOCRProcessor.from_pretrained(hf_model)
-        self.model = VisionEncoderDecoderModel.from_pretrained(hf_model).cuda()
+        self.processor = TrOCRProcessor.from_pretrained(hf_model, cache_dir=cache_dir)
+        self.model = VisionEncoderDecoderModel.from_pretrained(
+            hf_model, cache_dir=cache_dir
+        ).cuda()
         self.transforms = transforms.Compose(
             [
                 transforms.RandomInvert(p=1),
