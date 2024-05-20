@@ -35,6 +35,7 @@ class TritonPythonModel:
             torch_dtype=torch.float16,
             device_map="auto",
             cache_dir=os.environ["HF_HOME"],
+            load_in_8bit=True,
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.pipeline = pipeline(
@@ -87,7 +88,6 @@ class TritonPythonModel:
         logger.log_info("Llama Received request")
         logger.log_info(f"(Llama) Num prompts in batch: {len(requests)}")
         prompts = [self._make_prompt(request) for request in requests]
-        logger.log_info(f"Submitting the following prompts for batching: {prompts}")
         tensor_results = self.generate(prompts)
         responses = [
             pb_utils.InferenceResponse(output_tensors=[tensor])
