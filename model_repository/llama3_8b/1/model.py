@@ -11,7 +11,6 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
-    EosTokenCriteria,
 )
 import huggingface_hub
 
@@ -56,9 +55,6 @@ class TritonPythonModel:
             pad_token_id=self.tokenizer.eos_token_id,
             max_length=self.max_output_length,
             batch_size=len(prompts),
-            stopping_criteria=EosTokenCriteria(
-                eos_token_id=self.tokenizer.eos_token_id
-            ),
         )
         output_tensors = []
 
@@ -81,8 +77,10 @@ class TritonPythonModel:
     def _make_prompt(self, request):
         sys_msg = self._read_tensor(request, "system_message")
         user_msg = self._read_tensor(request, "user_message")
-        prompt_dict = [{"role": "system", "content": sys_msg},
-                       {"role": "user", "content": user_msg}]
+        prompt_dict = [
+            {"role": "system", "content": sys_msg},
+            {"role": "user", "content": user_msg},
+        ]
         return prompt_dict
 
     def execute(self, requests: List):
