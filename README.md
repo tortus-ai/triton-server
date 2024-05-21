@@ -1,5 +1,9 @@
 # Triton server
 
+<div align="center">
+<img width="25%" src="assets/triton_logo.png">
+</div>
+
 This repo contains the code required to set up a triton server to host ML models. [Triton servers](https://github.com/triton-inference-server) were set up by Nvidia to optimise load for using ML models in production. They support features like dynamic batching and GPU optimisaitons for Nvidia chips. With a Triton server, we're also able to host multiple models at the same time and routing is handled via the folder structure of the [Model Repository](#Model-Repository).
 
 ## Getting started
