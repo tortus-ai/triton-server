@@ -1,6 +1,6 @@
 name: "llama3_8b"
 backend: "python"
-max_batch_size: 32
+max_batch_size: 4
 input [
   {
     name: "system_message"
@@ -29,11 +29,11 @@ instance_group [
 ]
 
 dynamic_batching {
-    preferred_batch_size: [2, 4, 8, 16, 32]
+    preferred_batch_size: [2, 4]
     max_queue_delay_microseconds: 1500000
 }
 
 parameters: {
   key: "max_output_length",
-  value: {string_value: "1000"}
+  value: {string_value: "3000"}
 }
