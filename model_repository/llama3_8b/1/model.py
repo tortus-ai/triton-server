@@ -11,7 +11,6 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
-    EosTokenCriteria,
 )
 import huggingface_hub
 
@@ -45,7 +44,7 @@ class TritonPythonModel:
         )
         self.pipeline.tokenizer.pad_token_id = self.model.config.eos_token_id
 
-    def generate(self, prompts: List[str]):
+    def generate(self, prompts: List[List[dict]]):
         logger = pb_utils.Logger
         batches = self.pipeline(
             prompts,
@@ -56,16 +55,13 @@ class TritonPythonModel:
             pad_token_id=self.tokenizer.eos_token_id,
             max_length=self.max_output_length,
             batch_size=len(prompts),
-            stopping_criteria=EosTokenCriteria(
-                eos_token_id=self.tokenizer.eos_token_id
-            ),
         )
         output_tensors = []
 
         for i, batch in enumerate(batches):
             texts = []
             for i, seq in enumerate(batch):
-                text = seq["generated_text"]
+                text = seq["generated_text"][-1]["content"]
                 texts.append(text)
 
             tensor = pb_utils.Tensor("generated_text", np.array(text, dtype=np.object_))
@@ -81,8 +77,11 @@ class TritonPythonModel:
     def _make_prompt(self, request):
         sys_msg = self._read_tensor(request, "system_message")
         user_msg = self._read_tensor(request, "user_message")
-        prompt = f"{sys_msg} \n{user_msg}"
-        return prompt
+        prompt_dict = [
+            {"role": "system", "content": sys_msg},
+            {"role": "user", "content": user_msg},
+        ]
+        return prompt_dict
 
     def execute(self, requests: List):
         logger = pb_utils.Logger
