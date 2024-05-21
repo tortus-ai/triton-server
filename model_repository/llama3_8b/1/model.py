@@ -13,7 +13,6 @@ from transformers import (
     TextIteratorStreamer,
 )
 import huggingface_hub
-from threading import Thread
 
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
 
@@ -27,15 +26,13 @@ class TritonPythonModel:
             self.model_params.get("max_output_length", {}).get("string_value", "1024")
         )
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            hf_model, cache_dir=os.environ["HF_HOME"]
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
             torch_dtype=torch.float16,
             device_map="auto",
-            cache_dir=os.environ["HF_HOME"],
             load_in_8bit=True,
+            cache_dir=os.environ["HF_HOME"],
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.pipeline = pipeline(
