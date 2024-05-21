@@ -45,7 +45,7 @@ class TritonPythonModel:
         )
         self.pipeline.tokenizer.pad_token_id = self.model.config.eos_token_id
 
-    def generate(self, prompts: List[str]):
+    def generate(self, prompts: List[dict]):
         logger = pb_utils.Logger
         batches = self.pipeline(
             prompts,
@@ -81,8 +81,9 @@ class TritonPythonModel:
     def _make_prompt(self, request):
         sys_msg = self._read_tensor(request, "system_message")
         user_msg = self._read_tensor(request, "user_message")
-        prompt = f"{sys_msg} \n{user_msg}"
-        return prompt
+        prompt_dict = [{"role": "system", "content": sys_msg},
+                       {"role": "user", "content": user_msg}]
+        return prompt_dict
 
     def execute(self, requests: List):
         logger = pb_utils.Logger
