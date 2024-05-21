@@ -6,12 +6,12 @@ import numpy as np
 import torch
 
 os.environ["HF_HOME"] = "/opt/tritonserver/.hf-cache"
-from transformers.generation.stopping_criteria import EosTokenCriteria
 from transformers import (
     pipeline,
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
+    EosTokenCriteria,
 )
 import huggingface_hub
 
