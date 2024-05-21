@@ -45,7 +45,7 @@ class TritonPythonModel:
         )
         self.pipeline.tokenizer.pad_token_id = self.model.config.eos_token_id
 
-    def generate(self, prompts: List[dict]):
+    def generate(self, prompts: List[List[dict]]):
         logger = pb_utils.Logger
         batches = self.pipeline(
             prompts,
@@ -65,7 +65,7 @@ class TritonPythonModel:
         for i, batch in enumerate(batches):
             texts = []
             for i, seq in enumerate(batch):
-                text = seq["generated_text"]
+                text = seq["generated_text"][-1]["content"]
                 texts.append(text)
 
             tensor = pb_utils.Tensor("generated_text", np.array(text, dtype=np.object_))
