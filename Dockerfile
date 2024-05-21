@@ -13,5 +13,5 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6
 
-RUN pip install transformers==4.34.0 protobuf==3.20.3 sentencepiece==0.1.99 accelerate==0.23.0 einops==0.6.1 bitsandbytes
+RUN pip install transformers==4.41.0 protobuf==3.20.3 sentencepiece==0.1.99 accelerate==0.23.0 einops==0.6.1 bitsandbytes
 RUN pip install Pillow torch torchvision torchaudio

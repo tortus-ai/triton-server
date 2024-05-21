@@ -11,9 +11,9 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
+    EosTokenCriteria,
 )
 import huggingface_hub
-from threading import Thread
 
 huggingface_hub.login(token=os.environ.get("HF_TOKEN"))  ## Add your HF credentials
 
@@ -27,13 +27,12 @@ class TritonPythonModel:
             self.model_params.get("max_output_length", {}).get("string_value", "1024")
         )
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            hf_model, cache_dir=os.environ["HF_HOME"]
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
             torch_dtype=torch.float16,
             device_map="auto",
+            load_in_8bit=True,
             cache_dir=os.environ["HF_HOME"],
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
@@ -57,6 +56,9 @@ class TritonPythonModel:
             pad_token_id=self.tokenizer.eos_token_id,
             max_length=self.max_output_length,
             batch_size=len(prompts),
+            stopping_criteria=EosTokenCriteria(
+                eos_token_id=self.tokenizer.eos_token_id
+            ),
         )
         output_tensors = []
 
@@ -87,7 +89,6 @@ class TritonPythonModel:
         logger.log_info("Llama Received request")
         logger.log_info(f"(Llama) Num prompts in batch: {len(requests)}")
         prompts = [self._make_prompt(request) for request in requests]
-        logger.log_info(f"Submitting the following prompts for batching: {prompts}")
         tensor_results = self.generate(prompts)
         responses = [
             pb_utils.InferenceResponse(output_tensors=[tensor])
