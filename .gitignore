@@ -1,3 +1,4 @@
+.venv
 .env
 .hf-cache
 __pycache__
