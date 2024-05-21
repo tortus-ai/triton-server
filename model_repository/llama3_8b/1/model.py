@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 os.environ["HF_HOME"] = "/opt/tritonserver/.hf-cache"
+from transformers.generation.stopping_criteria import EosTokenCriteria
 from transformers import (
     pipeline,
     AutoTokenizer,
@@ -55,6 +56,9 @@ class TritonPythonModel:
             pad_token_id=self.tokenizer.eos_token_id,
             max_length=self.max_output_length,
             batch_size=len(prompts),
+            stopping_criteria=EosTokenCriteria(
+                eos_token_id=self.tokenizer.eos_token_id
+            ),
         )
         output_tensors = []
 
