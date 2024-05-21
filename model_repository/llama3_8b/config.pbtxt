@@ -35,5 +35,5 @@ dynamic_batching {
 
 parameters: {
   key: "max_output_length",
-  value: {string_value: "4000"}
+  value: {string_value: "1000"}
 }
