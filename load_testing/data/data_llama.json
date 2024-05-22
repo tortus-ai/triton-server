@@ -1,9 +1,10 @@
 {
-    "system_message": {
-        "content": "You are a helpful assistant. Answer in pirate speak",
-        "type": "string"},
-    
-    "user_message": {
-        "content": "Why is the sky blue?",
-        "type": "string"}
-    }
+  "system_message": {
+    "content": "You are a helpful assistant. Answer in pirate speak, please respond in 10 words or less",
+    "type": "string"
+  },
+  "user_message": {
+    "content": "Why is the sky blue?",
+    "type": "string"
+  }
+}
