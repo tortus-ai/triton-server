@@ -1,6 +1,6 @@
 name: "llama3_8b"
 backend: "python"
-max_batch_size: 4
+max_batch_size: 2
 input [
   {
     name: "system_message"
@@ -20,20 +20,19 @@ output [
     dims: [1]
   }
 ]
-instance_group [
-  {
-    count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
-  }
-]
 
 dynamic_batching {
-    preferred_batch_size: [2, 4]
+    preferred_batch_size: [2]
     max_queue_delay_microseconds: 1500000
 }
 
-parameters: {
-  key: "max_output_length",
-  value: {string_value: "3000"}
+parameters:[ {
+  key: "max_length",
+  value: {string_value: "8000"}
+},
+{
+  key: 'quantize',
+  value: {string_value: "full"}
 }
+]
+

@@ -22,17 +22,26 @@ class TritonPythonModel:
         cur_path = os.path.abspath(__file__)
         self.model_config = json.loads(args["model_config"])
         self.model_params = self.model_config.get("parameters", {})
-        self.max_output_length = int(
-            self.model_params.get("max_output_length", {}).get("string_value", "1024")
+        self.max_length = int(
+            self.model_params.get("max_length", {}).get("string_value", "1024")
         )
+        quant_map = {
+            "4bit": {"load_in_4bit": True},
+            "8bit": {"load_in_8bit": True},
+            "full": {},
+        }
+        logger = pb_utils.Logger
+        quant_level = self.model_params.get("quantize", {}).get("string_value", "")
+        logger.log_info(f"Quant level: {quant_level}")
+        quant_arg = quant_map.get(quant_level, {})
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
         self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
             torch_dtype=torch.float16,
             device_map="auto",
-            load_in_8bit=True,
             cache_dir=os.environ["HF_HOME"],
+            **quant_arg,
         )
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.pipeline = pipeline(
@@ -53,7 +62,7 @@ class TritonPythonModel:
             num_return_sequences=1,
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.eos_token_id,
-            max_length=self.max_output_length,
+            max_length=self.max_length,
             batch_size=len(prompts),
         )
         output_tensors = []
@@ -62,6 +71,10 @@ class TritonPythonModel:
             texts = []
             for i, seq in enumerate(batch):
                 text = seq["generated_text"][-1]["content"]
+                tokens = self.tokenizer.encode(text)
+                logger.log_info(
+                    f"Processed item. Number of output tokens: {len(tokens)}"
+                )
                 texts.append(text)
 
             tensor = pb_utils.Tensor("generated_text", np.array(text, dtype=np.object_))
