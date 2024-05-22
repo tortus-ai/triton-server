@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Load test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "locust",
+            "justMyCode": true,
+            "args": [
+                "-f",
+                "load_testing/locustfile.py",
+                "--headless",
+                "--data",
+                "${workspaceFolder}/load_testing/data/soap_note.json",
+                "--schema",
+                "${workspaceFolder}/model_repository/llama3_8b/config.pbtxt",
+                "--host",
+                "http://34.34.52.244/v2/models/llama3_8b/infer",
+            ]
+        }
+    ]
+}
