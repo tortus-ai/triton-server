@@ -5,6 +5,7 @@ Locust file for load testing
 """
 
 import os
+import logging
 import json
 from locust import HttpUser, task, tag, constant_throughput, events, LoadTestShape
 from request_schema import (
@@ -29,7 +30,7 @@ def _(parser):
         type=int,
         env_var="STARTING_USERS",
         help="Number of users to start with",
-        default=100,
+        default=1,
     )
     parser.add_argument(
         "--bulk-ramp",
@@ -117,8 +118,11 @@ class LoadTest(HttpUser):
     @tag("inference")
     @task
     def predict(self):
-        headers = {"Content-Type": "application/json"}
-        self.client.post(self.host, json=self.input_data_body)
+        response = self.client.post(self.host, json=self.input_data_body)
+        if response.status_code != 200:
+            logging.error(f"Error parsing response: {response.text}")
+        else:
+            logging.debug(f"Great success {json.dumps(response.json())}")
 
     def on_start(self):
         self._read_env_vars()
