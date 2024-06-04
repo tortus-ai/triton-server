@@ -20,7 +20,7 @@ docker build -t triton .
 
 ### Set up environment variables
 
-We currenlty only need the Huggingface token to get this working so make sure to set this in a `.env` file under `HF_TOKEN`. See the [example][.env.example].
+We currenlty only need the Huggingface token to get this working so make sure to set this in a `.env` file under `HF_TOKEN`. See the [example](.env.example).
 
 ### Run server
 
