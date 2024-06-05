@@ -11,6 +11,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
+    BitsAndBytesConfig
 )
 import huggingface_hub
 
@@ -34,6 +35,14 @@ class TritonPythonModel:
         quant_level = self.model_params.get("quantize", {}).get("string_value", "")
         logger.log_info(f"Quant level: {quant_level}")
         quant_arg = quant_map.get(quant_level, {})
+        if quant_arg and quant_level == "4bit":
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True
+            )
+            quant_arg = {"quantization_config": bnb_config}
         hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
         self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
