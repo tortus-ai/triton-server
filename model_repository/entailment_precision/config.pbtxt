@@ -1,0 +1,46 @@
+name: "entailment_precision"
+backend: "python"
+max_batch_size: 2
+input [
+  {
+    name: "transcript"
+    data_type: TYPE_STRING  
+    dims: [1]
+  },
+  {
+    name: "document"
+    data_type: TYPE_STRING  
+    dims: [1]
+  }
+]
+output [
+  {
+    name: "precision"
+    data_type: TYPE_FP32
+    dims: [1]
+  }
+]
+
+dynamic_batching {
+    preferred_batch_size: [2]
+    max_queue_delay_microseconds: 1500000
+}
+
+parameters:[ {
+  key: "max_length",
+  value: {string_value: "8000"}
+},
+{
+  key: 'quantize',
+  value: {string_value: "full"}
+},
+{
+  key: "sys_prompt",
+  value: {string_value: "You are an intelligent medical assistant. Your task is to assess whether a statement (the 'hypothesis') is logically supported or not, given some context text. This task is known as entailment verification. For a hypothesis to be entailed, all the relevant clinical details from the hypothesis *must* be verifiable from the context. \n\nConsider the relevant clinical details. If the statement is logically supported ('entailed') according to the reference, output 1 as your answer.If the statement is not entailed, output 0. If the hypothesis does not contain relevant clinical details, output 2.\n\n Clinically relevant details can be but are not limited to the following: *Personal information like name, profession, date of birth.\n *Medication types and dosages \n *Changes in symptoms and mood\n *Past medical history and test results \n *New prescriptions, indications by the clinician \n\nYou must output your answer in the format 'Answer: 0' for not clinically entailed, 'Answer: 1' for clinically entailed,  or 'Answer: 2' for not clinically relevant. Follow this format exactly; do not add any explanations."}
+},
+{
+  key: "user_prompt",
+  value: {string_value: "Context:\n$DOCUMENT\n\nHypothesis:\n$SENTENCE"}
+},
+]
+
