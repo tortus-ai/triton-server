@@ -55,7 +55,7 @@ class TritonPythonModel:
                 bnb_4bit_use_double_quant=True
             )
             quant_arg = {"quantization_config": bnb_config}
-        hf_model = "meta-llama/Meta-Llama-3-8B-Instruct"
+        hf_model = "Qwen/Qwen2.5-1.5B-Instruct" # "Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct"
         self.tokenizer = AutoTokenizer.from_pretrained(hf_model)
         self.model = AutoModelForCausalLM.from_pretrained(
             hf_model,
@@ -76,6 +76,12 @@ class TritonPythonModel:
 
     def generate(self, prompts: List[List[dict]]):
         logger = pb_utils.Logger
+        logger.log_info("Generating part.")
+        logger.log_info(f"Number of prompts: {len(prompts)}")
+
+        all_results = []
+        # Process each batch of prompts
+        # for batch_prompts in prompts[:2]:
         batches = self.pipeline(
             prompts,
             do_sample=True,
@@ -83,25 +89,25 @@ class TritonPythonModel:
             num_return_sequences=1,
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.eos_token_id,
-            max_length=self.max_length,
+            max_new_tokens=self.max_length,
             batch_size=len(prompts),
         )
-        output_tensors = []
 
-        for i, batch in enumerate(batches):
-            texts = []
-            for i, seq in enumerate(batch):
-                text = seq["generated_text"][-1]["content"]
-                tokens = self.tokenizer.encode(text)
-                logger.log_info(
-                    f"Processed item. Number of output tokens: {len(tokens)}"
-                )
-                texts.append(text)
-            results = self.handle_results(texts)
-            tensor = pb_utils.Tensor("precision", np.array(results, dtype=np.object_))
-            output_tensors.append(tensor)
+        texts = []
+        for seq in batches:
+            text = seq[-1]["generated_text"][-1]["content"]
+            tokens = self.tokenizer.encode(text)
+            logger.log_info(
+                f"Processed item. Number of output tokens: {len(tokens)}"
+            )
+            texts.append(text)
 
-        return output_tensors
+        result = self.handle_results(texts)
+        all_results.append(result)
+
+        # Create a single tensor containing all results
+        final_tensor = pb_utils.Tensor("precision", np.array(all_results, dtype=np.object_))
+        return [final_tensor]  # Return a list with single tensor
 
     def _read_tensor(self, request, tensor_name):
         msgs = pb_utils.get_input_tensor_by_name(request, tensor_name).as_numpy()
@@ -150,7 +156,7 @@ class TritonPythonModel:
             return int(match.group(1))
         return 0
 
-    def handle_results(self, tensor_results: list):
+    def handle_results(self, tensor_results: List[str]):
         """
         Post-processing logic for entailment verification sub-items.
         :param tensor_results: The tensor results from the entailment verification
@@ -158,8 +164,7 @@ class TritonPythonModel:
         """
         sum = 0
         for tensor in tensor_results:
-            result = tensor.as_numpy()[0][0].decode("utf-8")
-            answer = self._extract_answer(result)
+            answer = self._extract_answer(tensor)
             sum += answer
         return sum / len(tensor_results)
 
@@ -167,13 +172,14 @@ class TritonPythonModel:
         logger = pb_utils.Logger
         logger.log_info("Llama Received request")
         logger.log_info(f"(Llama) Num prompts in batch: {len(requests)}")
-        prompts = [self._make_prompt(request) for request in requests]
-        logger.log_info(f"Number Prompts: {len(prompts)}")
-        tensor_results = self.generate(prompts)
-        responses = [
-            pb_utils.InferenceResponse(output_tensors=[tensor])
-            for tensor in tensor_results
-        ]
+        
+        # Process each request and create a single response
+        responses = []
+        for request in requests:
+            prompts = self._make_prompt(request) # Wrap in list since generate expects list of prompts
+            tensor_results = self.generate(prompts)
+            response = pb_utils.InferenceResponse(output_tensors=tensor_results)
+            responses.append(response)
 
         return responses
 

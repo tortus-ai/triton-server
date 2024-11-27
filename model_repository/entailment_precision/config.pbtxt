@@ -28,7 +28,7 @@ dynamic_batching {
 
 parameters:[ {
   key: "max_length",
-  value: {string_value: "8000"}
+  value: {string_value: "50"}
 },
 {
   key: 'quantize',
@@ -41,6 +41,6 @@ parameters:[ {
 {
   key: "user_prompt",
   value: {string_value: "Context:\n$DOCUMENT\n\nHypothesis:\n$SENTENCE"}
-},
+}
 ]
 
